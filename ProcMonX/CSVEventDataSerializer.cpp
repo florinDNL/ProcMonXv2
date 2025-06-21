@@ -5,7 +5,7 @@
 #include "FormatHelper.h"
 
 
-//  Needed for processes like msedge which contain commans in their command line, messing up the csv formatting
+//  Needed for processes like msedge which contain commas in their command line, messing up the csv formatting
 std::wstring CSVEventDataSerializer::EscapeCommandLine(std::wstring cmd)
 {
     std::wstring escapedCmd = L"";
