@@ -1,9 +1,8 @@
 #include "pch.h"
 #include "CSVEventDataSerializer.h"
+#include "FormatHelper.h"
 #include <fstream>
 #include <format>
-#include "FormatHelper.h"
-#include <chrono>
 
 //  Needed for processes like msedge which contain commas in their command line, messing up the csv formatting
 void CSVEventDataSerializer::EscapeCsvString(std::wstring& str)
