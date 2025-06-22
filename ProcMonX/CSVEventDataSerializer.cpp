@@ -7,9 +7,10 @@
 //  Needed for processes like msedge which contain commas in their command line, messing up the csv formatting
 void CSVEventDataSerializer::EscapeCsvString(std::wstring& str)
 {
-    if (str.empty())
-		return; 
-    
+    if (str.empty()) {
+    	return; 
+    }
+
     std::wstring escapedStr = L"";
     for (wchar_t c : str) {
         if (c == '\"') {
@@ -23,18 +24,18 @@ void CSVEventDataSerializer::EscapeCsvString(std::wstring& str)
 
 std::wstring CSVEventDataSerializer::SerializeEvent(std::shared_ptr<EventData>& event)
 {
-	uint32_t index = event->GetIndex();
+    uint32_t index = event->GetIndex();
     DWORD tPid = event->GetProcessId();
     DWORD tTid = event->GetThreadId();
 
     std::wstring ts = (std::wstring)FormatHelper::FormatTime(event->GetTimeStamp());
     std::wstring name = event->GetEventName();
-	std::wstring pName = event->GetProcessName();
+    std::wstring pName = event->GetProcessName();
     std::wstring pid = (tPid == (DWORD) - 1) ? L"" : std::to_wstring(tPid);
     std::wstring tid = (tTid == (DWORD) - 1) ? L"" : std::to_wstring(tTid);
     std::wstring details = L"";
 
-	std::vector<EventProperty> props = event->GetProperties();
+    std::vector<EventProperty> props = event->GetProperties();
 
     if (props.size() > 0) {
         bool needsEscaping = false;
@@ -45,14 +46,14 @@ std::wstring CSVEventDataSerializer::SerializeEvent(std::shared_ptr<EventData>& 
                 if (p.Name == L"CommandLine") {
                     needsEscaping = true;
                 }
-            }            
+            }      
         }
 
-        if (needsEscaping) {
-            EscapeCsvString(details);
-        }
-	}    
-    
+	if (needsEscaping) {
+	    EscapeCsvString(details);
+	}
+    }
+
     return std::format(L"{},{},{},{},{},{},{}", index, ts, name, pName, pid, tid, details);
 }
 
