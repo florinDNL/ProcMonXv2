@@ -3,44 +3,58 @@
 #include <fstream>
 #include <format>
 #include "FormatHelper.h"
-
+#include <chrono>
 
 //  Needed for processes like msedge which contain commas in their command line, messing up the csv formatting
-std::wstring CSVEventDataSerializer::EscapeCommandLine(std::wstring cmd)
+void CSVEventDataSerializer::EscapeCsvString(std::wstring& str)
 {
-    std::wstring escapedCmd = L"";
-    for (wchar_t c : cmd)
-    {
-        if (c == '\"')
-        {
-            escapedCmd += c;
+    if (str.empty())
+		return; 
+    
+    std::wstring escapedStr = L"";
+    for (wchar_t c : str) {
+        if (c == '\"') {
+            escapedStr += c;
         }
-        escapedCmd += c;
+        escapedStr += c;
     }
 
-    return std::format(L"\"{}\"", escapedCmd);
+    str = std::format(L"\"{}\"", escapedStr);
 }
 
 std::wstring CSVEventDataSerializer::SerializeEvent(std::shared_ptr<EventData>& event)
 {
+	uint32_t index = event->GetIndex();
+    DWORD tPid = event->GetProcessId();
+    DWORD tTid = event->GetThreadId();
+
     std::wstring ts = (std::wstring)FormatHelper::FormatTime(event->GetTimeStamp());
     std::wstring name = event->GetEventName();
-    std::wstring cmd, status, parentId = L"";
-    CString img = L"";
+	std::wstring pName = event->GetProcessName();
+    std::wstring pid = (tPid == (DWORD) - 1) ? L"" : std::to_wstring(tPid);
+    std::wstring tid = (tTid == (DWORD) - 1) ? L"" : std::to_wstring(tTid);
+    std::wstring details = L"";
 
-    if (name == L"Process/Start" || name == L"Process/End")
-    {
-        cmd = (std::wstring)(event->GetProperty(L"CommandLine")->GetUnicodeString());
-        img = event->GetProperty(L"ImageFileName")->GetAnsiString();
-        status = std::to_wstring(event->GetProperty(L"ExitStatus")->GetValue<DWORD>());
-        parentId = std::to_wstring(event->GetProperty(L"ParentId")->GetValue<DWORD>());
-    }
+	std::vector<EventProperty> props = event->GetProperties();
 
-    std::wstring serial = std::format(L"{},{},{},{},{},{},{},{},{},{}", event->GetIndex(), ts, name, 
-                                      event->GetProcessName(), event->GetProcessId(), event->GetThreadId(),
-                                      EscapeCommandLine(cmd), (std::wstring)img, status, parentId);
+    if (props.size() > 0) {
+        bool needsEscaping = false;
+        for (EventProperty& p : props) {
+            std::wstring pValue = event->FormatProperty(p);
+            if (!pValue.empty()) { 
+                details += p.Name + L": " + pValue + L"; ";
+                if (p.Name == L"CommandLine") {
+                    needsEscaping = true;
+                }
+            }            
+        }
+
+        if (needsEscaping) {
+            EscapeCsvString(details);
+        }
+	}    
     
-    return serial;
+    return std::format(L"{},{},{},{},{},{},{}", index, ts, name, pName, pid, tid, details);
 }
 
 bool CSVEventDataSerializer::Save(const std::vector<std::shared_ptr<EventData>>& events, const EventDataSerializerOptions& options, PCWSTR path) {
@@ -49,14 +63,13 @@ bool CSVEventDataSerializer::Save(const std::vector<std::shared_ptr<EventData>>&
     if(out.fail())
         return false;
 
-    out << L"Id,Time Stamp,Event Name,Process Name,PID,TID,Command Line,Image Name,Exit Status,Parent ID" << std::endl;
+    out << L"Id,Time Stamp,Event Name,Process Name,PID,TID,Details" << std::endl;
 
     for (std::shared_ptr<EventData> evt : events) {
         out << SerializeEvent(evt) << std::endl;
     }
 
     out.close();
-
     return true;
 }
 
